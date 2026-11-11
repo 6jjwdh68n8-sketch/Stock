@@ -1,0 +1,10 @@
+{
+  "name": "Stock Average 股票攤平計算器",
+  "short_name": "Stock Average",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#101827",
+  "lang": "zh-Hant",
+  "description": "手動輸入股價的個人股票持倉與攤平計算器"
+}

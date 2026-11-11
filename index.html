@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101827">
+<title>Stock Average｜股票攤平計算器</title>
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#141f30;--panel2:#1b293d;--line:#2b3b52;--txt:#f4f7fb;--muted:#9aabc0;--accent:#70a7ff;--green:#53d6a0;--red:#ff8585}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:env(safe-area-inset-top) 14px calc(22px + env(safe-area-inset-bottom))}
+main{max-width:760px;margin:auto}.top{display:flex;justify-content:space-between;align-items:center;padding:18px 2px 12px}.brand{font-weight:800;font-size:22px}.sub,.muted{color:var(--muted);font-size:13px}.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0}.row{display:flex;gap:10px;align-items:center}.between{justify-content:space-between}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{display:flex;flex-direction:column;gap:6px;margin:10px 0}.field label{font-size:13px;color:var(--muted)}input,select,button{font:inherit}input,select{width:100%;border:1px solid var(--line);background:var(--panel2);color:var(--txt);border-radius:11px;padding:12px;min-width:0}button{border:0;border-radius:12px;padding:12px 14px;font-weight:700;cursor:pointer;background:var(--accent);color:#081321}.secondary{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}.danger{background:#48232b;color:#ffd9dd}.pill{font-size:11px;padding:4px 8px;border-radius:99px;background:#243b5b;color:#b9d5ff}.stock{padding:13px;border:1px solid var(--line);border-radius:14px;margin:9px 0;background:#111c2c}.stock h3{margin:0;font-size:17px}.price{font-size:22px;font-weight:800}.tabs{display:flex;gap:8px;overflow:auto;margin:10px 0}.tabs button{white-space:nowrap}.tabs .active{background:var(--accent);color:#081321}.metric{background:var(--panel2);padding:12px;border-radius:12px}.metric small{display:block;color:var(--muted);font-size:12px}.metric strong{display:block;font-size:19px;margin-top:4px}.result{font-size:30px;font-weight:850;color:var(--green)}input[type=range]{padding:0;accent-color:var(--accent)}.hidden{display:none!important}.table{width:100%;border-collapse:collapse;font-size:13px}.table td,.table th{padding:9px 5px;border-bottom:1px solid var(--line);text-align:right}.table td:first-child,.table th:first-child{text-align:left}.note{font-size:12px;color:var(--muted);line-height:1.5}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions button{flex:1}.empty{text-align:center;color:var(--muted);padding:24px 10px}.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#263b56;padding:10px 16px;border-radius:12px;display:none;z-index:5}
+@media(min-width:600px){body{padding-top:24px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}}
+</style>
+</head>
+<body>
+<main>
+<header class="top"><div><div class="brand">Stock Average</div><div class="sub">個人股票持倉・攤平試算</div></div><span class="pill">手動報價</span></header>
+<section class="card">
+ <div class="row between"><div><b>我的持股</b><div class="sub">資料保存在這台裝置的瀏覽器</div></div><button id="addBtn">＋ 新增股票</button></div>
+ <div id="stockList"></div>
+</section>
+<section class="card" id="editor">
+ <div class="row between"><b id="editorTitle">新增／編輯持股</b><button class="secondary" id="clearForm">清空</button></div>
+ <div class="grid">
+  <div class="field"><label>股票代號／名稱</label><input id="symbol" placeholder="例如 MRVL、COHR、2330"></div>
+  <div class="field"><label>市場</label><select id="market"><option value="US">美股（USD）</option><option value="TW">台股（TWD）</option></select></div>
+ </div>
+ <div class="grid">
+  <div class="field"><label>目前市價（手動輸入）</label><input id="marketPrice" type="number" min="0" step="any" placeholder="例如 160"></div>
+  <div class="field"><label>報價時間／備註（選填）</label><input id="quoteNote" placeholder="例如 11/11 收盤"></div>
+ </div>
+ <div class="field"><label>目前持股數量（總股數）</label><input id="shares" type="number" min="0" step="any" placeholder="例如 5"></div>
+ <div class="field"><label>目前平均成本（每股）</label><input id="avgCost" type="number" min="0" step="any" placeholder="例如 262"></div>
+ <div class="note">若使用逐筆交易紀錄，儲存後可在下方新增買進／賣出紀錄，系統會依紀錄計算持倉股數與平均成本。手動平均成本模式則直接使用上面輸入的股數與成本。</div>
+ <div class="actions" style="margin-top:12px"><button id="saveStock">儲存持股</button><button class="secondary" id="deleteStock">刪除這檔</button></div>
+</section>
+<section class="card" id="calc">
+ <div class="row between"><b>攤平計算器</b><span class="pill" id="calcSymbol">先選擇股票</span></div>
+ <div class="grid" style="margin-top:12px">
+  <div class="metric"><small>目前股數</small><strong id="oldShares">—</strong></div>
+  <div class="metric"><small>目前均價</small><strong id="oldAvg">—</strong></div>
+  <div class="metric"><small>手動市價</small><strong id="livePrice">—</strong></div>
+  <div class="metric"><small>加碼金額</small><strong id="buyAmount">—</strong></div>
+ </div>
+ <div class="field"><label>預計加碼股數：<b id="buyQtyLabel">0</b></label><input id="buyQty" type="range" min="0" max="100" step="1" value="0"><div class="row between sub"><span>0 股</span><span id="maxQty">100 股</span></div></div>
+ <div class="field"><label>或直接輸入加碼股數</label><input id="buyQtyInput" type="number" min="0" step="any" value="0"></div>
+ <div class="grid">
+  <div class="metric"><small>加碼後總股數</small><strong id="newShares">—</strong></div>
+  <div class="metric"><small>加碼後平均成本</small><strong class="result" id="newAvg">—</strong></div>
+ </div>
+ <div class="field"><label>目標平均成本（反推需要買進股數）</label><input id="targetAvg" type="number" min="0" step="any" placeholder="例如 200"></div>
+ <div class="metric"><small>達到目標均價所需買進股數（僅當目標低於目前均價且高於買入價時可計算）</small><strong id="targetQty">—</strong></div>
+ <p class="note">試算假設所有新增股票都以目前手動輸入的市價成交，不含手續費、稅費、匯率與滑價。若買入價等於或高於目標均價，無法靠該價格買進達成目標。</p>
+</section>
+<section class="card">
+ <div class="row between"><b>逐筆交易紀錄</b><span class="pill" id="tradeMode">選擇股票後使用</span></div>
+ <div class="grid">
+  <div class="field"><label>交易類型</label><select id="tradeSide"><option value="BUY">買進</option><option value="SELL">賣出</option></select></div>
+  <div class="field"><label>股數</label><input id="tradeQty" type="number" min="0" step="any" placeholder="股數"></div>
+ </div>
+ <div class="grid">
+  <div class="field"><label>成交單價</label><input id="tradePrice" type="number" min="0" step="any" placeholder="成交價格"></div>
+  <div class="field"><label>手續費／其他成本</label><input id="tradeFee" type="number" min="0" step="any" value="0"></div>
+ </div>
+ <button id="addTrade" style="width:100%">新增交易紀錄</button>
+ <div id="tradeList"></div>
+ <div class="actions" style="margin-top:10px"><button class="secondary" id="applyTrades">用交易紀錄更新持倉</button></div>
+ <p class="note">逐筆計算採移動加權平均法：買進時把交易成本加進持倉；賣出時按賣出前平均成本沖減成本。若要使用手動平均成本，直接編輯上方持股資料即可。</p>
+</section>
+<section class="card">
+ <div class="row between"><b>備份與還原</b><span class="sub">避免換手機遺失</span></div>
+ <div class="actions"><button class="secondary" id="exportData">匯出備份</button><button class="secondary" id="importBtn">匯入備份</button><input id="importFile" type="file" accept="application/json" class="hidden"></div>
+ <p class="note">資料目前儲存在本機瀏覽器，不會自動同步到其他裝置。請定期匯出備份；清除 Safari 網站資料也可能刪除資料。</p>
+</section>
+<footer class="note" style="text-align:center;padding:10px">Stock Average MVP · 手動報價 · 非投資建議</footer>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const KEY='stock-average-v1';
+let state={stocks:[],selected:null};
+let editing=null;
+const $=id=>document.getElementById(id);
+const num=id=>Number($(id).value);
+const money=(v,c)=>Number.isFinite(v)?new Intl.NumberFormat('en-US',{style:'currency',currency:c,maximumFractionDigits:4}).format(v):'—';
+const fmt=v=>Number(v||0).toLocaleString('en-US',{maximumFractionDigits:6});
+function load(){try{state=JSON.parse(localStorage.getItem(KEY))||state}catch(e){} if(!Array.isArray(state.stocks))state.stocks=[];if(!state.selected&&state.stocks[0])state.selected=state.stocks[0].id}
+function persist(){localStorage.setItem(KEY,JSON.stringify(state))}
+function toast(s){$('toast').textContent=s;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2200)}
+function selected(){return state.stocks.find(s=>s.id===state.selected)}
+function computed(s){let q=0,cost=0;for(const t of (s.trades||[])){if(t.side==='BUY'){q+=t.qty;cost+=t.qty*t.price+t.fee}else{if(t.qty>q+1e-9)continue;let avg=q?cost/q:0;cost-=avg*t.qty;q-=t.qty}}return {shares:q,avg:q?cost/q:0}}
+function renderList(){let el=$('stockList');if(!state.stocks.length){el.innerHTML='<div class="empty">還沒有持股，按「新增股票」開始建立。</div>';return}el.innerHTML=state.stocks.map(s=>{let tr=!!(s.trades&&s.trades.length),p=tr?computed(s):{shares:s.shares,avg:s.avgCost};return `<div class="stock" data-id="${s.id}"><div class="row between"><h3>${esc(s.symbol)}</h3><span class="pill">${s.market==='US'?'美股 USD':'台股 TWD'}${tr?' · 逐筆':' · 手動'}</span></div><div class="row between" style="margin-top:9px"><div><div class="price">${money(Number(s.marketPrice),s.market==='US'?'USD':'TWD')}</div><div class="sub">${esc(s.quoteNote||'未註明報價時間')}</div></div><div style="text-align:right"><b>${fmt(p.shares)} 股</b><div class="sub">均價 ${money(p.avg,s.market==='US'?'USD':'TWD')}</div></div></div><button class="secondary" style="width:100%;margin-top:10px" onclick="selectStock('${s.id}')">選擇／編輯／試算</button></div>`}).join('')}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+window.selectStock=id=>{state.selected=id;persist();fillForm();renderAll()}
+function fillForm(){let s=selected();editing=s?.id||null;$('editorTitle').textContent=s?'編輯持股':'新增持股';$('symbol').value=s?.symbol||'';$('market').value=s?.market||'US';$('marketPrice').value=s?.marketPrice??'';$('quoteNote').value=s?.quoteNote||'';$('shares').value=s?.shares??'';$('avgCost').value=s?.avgCost??''}
+function currentPosition(s){return s.trades?.length?computed(s):{shares:Number(s.shares||0),avg:Number(s.avgCost||0)}}
+function renderCalc(){let s=selected();if(!s){$('calcSymbol').textContent='先選擇股票';return}let p=currentPosition(s),cur=Number(s.marketPrice||0),q=num('buyQtyInput'),newQ=p.shares+q,total=p.shares*p.avg+q*cur,avg=newQ?total/newQ:0,c=s.market==='US'?'USD':'TWD';$('calcSymbol').textContent=s.symbol;$('oldShares').textContent=fmt(p.shares)+' 股';$('oldAvg').textContent=money(p.avg,c);$('livePrice').textContent=money(cur,c);$('buyAmount').textContent=money(q*cur,c);$('buyQtyLabel').textContent=fmt(q)+' 股';$('newShares').textContent=fmt(newQ)+' 股';$('newAvg').textContent=money(avg,c);let target=num('targetAvg'),need=(target>cur&&target<p.avg)?p.shares*(p.avg-target)/(target-cur):null;$('targetQty').textContent=need===null?'無法以此價格達成':fmt(need)+' 股';}
+function renderTrades(){let s=selected(),el=$('tradeList');if(!s){$('tradeMode').textContent='選擇股票後使用';el.innerHTML='';return}$('tradeMode').textContent=s.trades?.length?'已啟用逐筆紀錄':'可新增紀錄';let arr=s.trades||[];el.innerHTML=arr.length?'<table class="table"><thead><tr><th>類型</th><th>股數</th><th>單價</th><th>費用</th></tr></thead><tbody>'+arr.map(t=>`<tr><td>${t.side==='BUY'?'買進':'賣出'}</td><td>${fmt(t.qty)}</td><td>${fmt(t.price)}</td><td>${fmt(t.fee)}</td></tr>`).join('')+'</tbody></table>':'<div class="empty">尚無逐筆交易紀錄</div>'}
+function renderAll(){renderList();renderCalc();renderTrades()}
+$('addBtn').onclick=()=>{state.selected=null;editing=null;fillForm();$('symbol').focus();renderAll()}
+$('clearForm').onclick=()=>{editing=null;$('symbol').value='';$('marketPrice').value='';$('quoteNote').value='';$('shares').value='';$('avgCost').value='';$('editorTitle').textContent='新增持股'}
+$('saveStock').onclick=()=>{let symbol=$('symbol').value.trim().toUpperCase(),market=$('market').value,price=num('marketPrice'),shares=num('shares'),avg=num('avgCost');if(!symbol){toast('請輸入股票代號或名稱');return}if(!Number.isFinite(price)||price<0||shares<0||avg<0){toast('請檢查數字欄位');return}let s=editing?selected():null;if(!s){s={id:crypto.randomUUID(),trades:[]};state.stocks.push(s)}Object.assign(s,{symbol,market,marketPrice:price,quoteNote:$('quoteNote').value.trim(),shares,avgCost:avg});state.selected=s.id;persist();renderAll();fillForm();toast('持股已儲存')}
+$('deleteStock').onclick=()=>{let s=selected();if(!s){toast('沒有選取持股');return}if(!confirm('確定刪除 '+s.symbol+'？'))return;state.stocks=state.stocks.filter(x=>x.id!==s.id);state.selected=state.stocks[0]?.id||null;persist();fillForm();renderAll();toast('已刪除')}
+function updateQty(v){$('buyQtyInput').value=v;$('buyQty').value=Math.min(Number(v)||0,Number($('buyQty').max));renderCalc()}
+$('buyQty').oninput=e=>updateQty(e.target.value);$('buyQtyInput').oninput=e=>{let v=Math.max(0,Number(e.target.value)||0);$('buyQty').value=Math.min(v,Number($('buyQty').max));renderCalc()}
+$('targetAvg').oninput=renderCalc;
+$('marketPrice').oninput=()=>{let s=selected();if(s){s.marketPrice=num('marketPrice');s.quoteNote=$('quoteNote').value;persist();renderList();renderCalc()}}
+$('quoteNote').onchange=()=>{let s=selected();if(s){s.quoteNote=$('quoteNote').value;persist();renderList()}}
+$('addTrade').onclick=()=>{let s=selected();if(!s){toast('請先新增或選擇股票');return}let qty=num('tradeQty'),price=num('tradePrice'),fee=num('tradeFee');if(!(qty>0)||!(price>=0)||!(fee>=0)){toast('請輸入有效的股數、價格與費用');return}let pos=currentPosition(s);if($('tradeSide').value==='SELL'&&qty>pos.shares){toast('賣出股數不能超過目前持股');return}s.trades=s.trades||[];s.trades.push({side:$('tradeSide').value,qty,price,fee,date:new Date().toISOString()});persist();renderAll();$('tradeQty').value='';$('tradePrice').value='';toast('交易紀錄已新增')}
+$('applyTrades').onclick=()=>{let s=selected();if(!s?.trades?.length){toast('目前沒有逐筆交易紀錄');return}let p=computed(s);s.shares=p.shares;s.avgCost=p.avg;persist();renderAll();fillForm();toast('已依交易紀錄更新持倉')}
+$('exportData').onclick=()=>{let blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='stock-average-backup.json';a.click();URL.revokeObjectURL(a.href)}
+$('importBtn').onclick=()=>$('importFile').click();$('importFile').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let x=JSON.parse(await f.text());if(!Array.isArray(x.stocks))throw Error();state=x;persist();fillForm();renderAll();toast('備份已匯入')}catch(err){toast('檔案格式不正確')}e.target.value=''}
+load();fillForm();renderAll();
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body>
+</html>
